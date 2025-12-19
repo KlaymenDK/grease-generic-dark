@@ -1,0 +1,78 @@
+// ==UserScript==
+// @name         grease-generic-dark
+// @namespace    http://tampermonkey.net/
+// @version      0.1
+// @description  Attempts to autodetect non-dark sites and applies a generic dark mode on them.
+// @author       noughtnaut
+// @match        *://*/*
+// @run-at       document-start
+// @grant        none
+// ==/UserScript==
+
+
+(function () {
+  // -------- Dark detection --------
+  function isDark() {
+    function isDarkColor(rgb) {
+      const [r, g, b] = rgb.map(Number);
+      // perceived luminance
+      return (0.2126 * r + 0.7152 * g + 0.0722 * b) < 128;
+    }
+
+    function hasDarkBackground() {
+      const bg = getComputedStyle(document.body).backgroundColor;
+      const match = bg.match(/\d+/g);
+      return match && isDarkColor(match);
+    }
+
+    function siteDeclaresDarkMode() {
+      const htmlStyle = getComputedStyle(document.documentElement);
+      const bodyStyle = getComputedStyle(document.body);
+      return (
+        htmlStyle.colorScheme.includes('dark') ||
+        bodyStyle.colorScheme.includes('dark')
+      );
+    }
+
+    function prefersDarkAndSiteSupportsIt() {
+      return (
+        window.matchMedia('(prefers-color-scheme: dark)').matches &&
+        siteDeclaresDarkMode()
+      );
+    }
+
+    function hasDarkThemeClass() {
+      return document.documentElement.className.match(
+        /(dark|night|theme-dark)/i
+      );
+    }
+
+    // If any of these indicate dark, return true
+    return (
+      prefersDarkAndSiteSupportsIt() ||
+      siteDeclaresDarkMode() ||
+      hasDarkBackground() ||
+      hasDarkThemeClass()
+    );
+  }
+
+  // -------- Generic dark mode injection --------
+  function applyGenericDarkMode() {
+    const style = document.createElement('style');
+    style.textContent = `
+      html {
+        filter: invert(1) hue-rotate(180deg) contrast(0.8);
+      }
+
+      img, video, picture, canvas, iframe, embed {
+        filter: invert(1) hue-rotate(180deg);
+      }
+    `;
+    document.head.appendChild(style);
+  }
+
+  // -------- Main --------
+  if (!isDark()) {
+    applyGenericDarkMode();
+  }
+})();
